@@ -18,7 +18,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -26,42 +28,66 @@ import (
 // fileCmd represents the file command
 var fileCmd = &cobra.Command{
 	Use:   "file",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "file subcommand handles file parts",
+	Example: `hgotool file detail [FILE_PATH]
+hgotool file monitor [FILE_PATH]`,
+	Long: `file subcommand handles file parts.
+can show target file simple infomation and 
+monitor target file whatever changes in target file 
+and If has changes, Send notification to User`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("file called")
+		if len(args) == 0 {
+			cmd.Help()
+			os.Exit(1)
+		}
+		fmt.Println("file called...\n")
 		flag.Parse()
 		args = flag.Args()
 
-		//fmt.Println(args[1])
-		var Path string
-		var Filename string
-		Patharr := strings.Split(args[1], "/")
+		if args[1] == "detail" {
 
-		for length := range Patharr {
-			//fmt.Println(Patharr[length])
-			if length == len(Patharr)-1 {
-				Filename = Patharr[len(Patharr)-1]
-				break
-			} else {
-				Path = Path + "/" + Patharr[length]
+			Filename := args[2]
+
+			Name, Size, Permission, err := GetFileDetail(Filename)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
 			}
-		}
-		fmt.Println("Path : ", Path)
-		fmt.Println("target file : ", Filename)
-		fmt.Println(Path + "/" + Filename)
+			fmt.Printf("Name : %s    Size : %s    Mod : %s\n", Name, Size, Permission)
+		} else if args[1] == "monitor" {
+			Filename := args[2]
+			_, CurrentSize, CurrentPermission, err := GetFileDetail(Filename)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			CurrentSizeInt, _ := strconv.Atoi(CurrentSize)
+			CurrentPermissionInt, _ := strconv.Atoi(CurrentPermission)
 
-		res, err := os.Stat(Path + "/" + Filename)
-		if err != nil {
+			for {
+				_, Size, Permission, err := GetFileDetail(Filename)
+				if err != nil {
+					fmt.Println("Changing File Name or Deleteing File !!")
+					os.Exit(1)
+				}
+				SizeInt, _ := strconv.Atoi(Size)
+				PermissionInt, _ := strconv.Atoi(Permission)
+
+				if CurrentSizeInt != SizeInt {
+					fmt.Println("Changing File Size")
+					os.Exit(1)
+				} else if CurrentPermissionInt != PermissionInt {
+					fmt.Println("Changing File Permission")
+					os.Exit(1)
+				} else {
+					time.Sleep(1 * time.Second)
+				}
+
+			}
+
+		} else {
 			os.Exit(1)
 		}
-		fmt.Printf("%+v", res)
-		fmt.Printf("%T", res)
 	},
 }
 
@@ -72,9 +98,32 @@ func init() {
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// fileCmd.PersistentFlags().String("foo", "", "A help for foo")
+	fileCmd.PersistentFlags().String("detail", "", "show file FileName,FileSize,FilePermissionCode. show Exsample")
+	fileCmd.PersistentFlags().String("monitor", "", "monitor Whether there is no arbitrary change on target File")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// fileCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	//fileCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func GetFileDetail(Filename string) (string, string, string, error) {
+	Res, err := os.Stat(Filename)
+	if err != nil {
+		//fmt.Println(" [Error] : target file not exist")
+		Funcerr := fmt.Errorf("[Error] : %s", "target file not exist")
+		return "", "", "", Funcerr
+	}
+	ResStr := fmt.Sprintf("%+v", Res)
+	//fmt.Println(ResStr)
+	SplitedRes := strings.Split(ResStr, " ")
+
+	TrimName := strings.Split(SplitedRes[0], ":")
+	Name := TrimName[1]
+
+	TrimSize := strings.Split(SplitedRes[1], ":")
+	Size := TrimSize[1]
+
+	TrimPermission := strings.Split(SplitedRes[2], ":")
+	Permission := TrimPermission[1]
+	return Name, Size, Permission, nil
 }
