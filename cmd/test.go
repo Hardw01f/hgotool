@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
 )
 
@@ -53,14 +54,32 @@ to quickly create a Cobra application.`,
 	},
 }
 
+type Config struct {
+	Detail ServerDetail
+}
+
+type ServerDetail struct {
+	Slack string
+}
+
+var config Config
+
 func SendTest(Name string, Text string) {
+
+	_, err := toml.DecodeFile("./config.toml", &config)
+	if err != nil {
+		os.Exit(1)
+	}
+
+	//fmt.Println(config.Detail.Slack)
+
 	channel := "alert"
 
 	jsonStr := `{"channel":"` + channel + `","username":"` + Name + `","text":"` + Text + `"}`
 
 	req, err := http.NewRequest(
 		"POST",
-		"https://hooks.slack.com/services/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",
+		config.Detail.Slack,
 		bytes.NewBuffer([]byte(jsonStr)),
 	)
 
@@ -80,11 +99,8 @@ func SendTest(Name string, Text string) {
 	defer resp.Body.Close()
 }
 
-var Source string
-
 func init() {
 	rootCmd.AddCommand(testCmd)
-	rootCmd.Flags().StringVarP(&Source, "source", "s", "", "Source directory to read from")
 
 	// Here you will define your flags and configuration settings.
 

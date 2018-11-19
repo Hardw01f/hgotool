@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/spf13/cobra"
 )
 
@@ -82,13 +83,13 @@ and If has changes, Send notification to User`,
 
 				if CurrentSizeInt != SizeInt {
 					fmt.Println("Changing File Size")
-					Alert := fmt.Sprintf("[Alert] : Changing   %s   File Size,  %s --> %s", Name, CurrentSize, Size)
+					Alert := fmt.Sprintf("Changing   %s   File Size,  %s --> %s", Name, CurrentSize, Size)
 					SendForFile(Alert)
 					os.Exit(1)
 
 				} else if CurrentPermissionInt != PermissionInt {
 					fmt.Println("Changing File Permission")
-					Alert := fmt.Sprintf("[Alert] : Changing   %s   File Permission,  Mode %s --> Mode %s", Name, CurrentPermission, Permission)
+					Alert := fmt.Sprintf("Changing   %s   File Permission,  Mode %s --> Mode %s", Name, CurrentPermission, Permission)
 					SendForFile(Alert)
 					os.Exit(1)
 
@@ -150,16 +151,21 @@ func SendForFile(Text string) {
 		os.Exit(1)
 	}
 
+	_, err = toml.DecodeFile("./config.toml", &config)
+	if err != nil {
+		os.Exit(1)
+	}
+
 	jsonStr := `{"channel":"` + channel + `","username":"` + Hostname + `","text":"` + Text + `"}`
 
 	req, err := http.NewRequest(
 		"POST",
-		"https://hooks.slack.com/services/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",
+		config.Detail.Slack,
 		bytes.NewBuffer([]byte(jsonStr)),
 	)
 
 	if err != nil {
-		fmt.Print(err)
+		os.Exit(1)
 	}
 
 	req.Header.Set("Content-Type", "application/json")

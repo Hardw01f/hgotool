@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/mitchellh/go-ps"
 	"github.com/spf13/cobra"
 )
@@ -139,11 +140,28 @@ MONITOR whether current running process was killed If had killed , Send notifica
 	},
 }
 
+/*
+type Config struct {
+	Detail ServerDetail
+}
+
+type ServerDetail struct {
+	Slack string
+}
+
+var config Config
+*/
+
 func SendForPs(Text string) {
 
 	Hostname, err := os.Hostname()
 	if err != nil {
 		fmt.Println("Cannot get OS hostname")
+	}
+
+	_, err = toml.DecodeFile("./config.toml", &config)
+	if err != nil {
+		os.Exit(1)
 	}
 
 	channel := "alert"
@@ -152,7 +170,7 @@ func SendForPs(Text string) {
 
 	req, err := http.NewRequest(
 		"POST",
-		"https://hooks.slack.com/services/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",
+		config.Detail.Slack,
 		bytes.NewBuffer([]byte(jsonStr)),
 	)
 
