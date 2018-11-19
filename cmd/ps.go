@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +50,7 @@ MONITOR whether current running process was killed If had killed , Send notifica
 		//fmt.Println(args[1], args[2])
 
 		if args[1] == "show" {
+
 			processes, err := ps.Processes()
 			if err != nil {
 				os.Exit(1)
@@ -62,7 +64,13 @@ MONITOR whether current running process was killed If had killed , Send notifica
 				//fmt.Println(res)
 
 				splitRes := strings.Split(res, " ")
-				fmt.Printf("PID : %s   PPID : %s   NAME :        %s \n", splitRes[0], splitRes[1], splitRes[2])
+				if runtime.GOOS == "darwin" {
+					fmt.Printf("PID : %s   PPID : %s   NAME :        %s \n", splitRes[0], splitRes[1], splitRes[2])
+				} else if runtime.GOOS == "linux" {
+					fmt.Printf("PID : %s   PPID : %s   NAME :        %s \n", splitRes[0], splitRes[1], splitRes[5])
+				} else {
+					fmt.Println("Sorry, cant use this OS")
+				}
 
 				//fmt.Printf("%T type  :  ", process)
 				//fmt.Printf("%v\n", process)
@@ -107,7 +115,14 @@ MONITOR whether current running process was killed If had killed , Send notifica
 					SplitProcess := strings.Split(process, "{")
 					Splitedprocess := strings.Split(SplitProcess[1], "}")
 					Splited := strings.Split(Splitedprocess[0], " ")
-					ProcessName = Splited[2]
+					if runtime.GOOS == "darwin" {
+						ProcessName = Splited[2]
+					} else if runtime.GOOS == "linux" {
+						ProcessName = Splited[5]
+					} else {
+						fmt.Println("cant use this OS")
+						os.Exit(1)
+					}
 
 				} else if MonitorTarget == nil {
 					fmt.Printf("%s Process was killed ", ProcessName)
