@@ -80,8 +80,11 @@ func SendTest(Name string, Text string) {
 	defer resp.Body.Close()
 }
 
+var Source string
+
 func init() {
 	rootCmd.AddCommand(testCmd)
+	rootCmd.Flags().StringVarP(&Source, "source", "s", "", "Source directory to read from")
 
 	// Here you will define your flags and configuration settings.
 
