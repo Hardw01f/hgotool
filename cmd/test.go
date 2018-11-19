@@ -15,7 +15,10 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -39,7 +42,42 @@ to quickly create a Cobra application.`,
 			cmd.Help()
 		}
 		fmt.Println("test called")
+
+		if args[0] == "Send" {
+			SendTest("Test", "This is Test")
+
+		} else {
+			os.Exit(1)
+		}
+
 	},
+}
+
+func SendTest(Name string, Text string) {
+	channel := "alert"
+
+	jsonStr := `{"channel":"` + channel + `","username":"` + Name + `","text":"` + Text + `"}`
+
+	req, err := http.NewRequest(
+		"POST",
+		"https://hooks.slack.com/services/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",
+		bytes.NewBuffer([]byte(jsonStr)),
+	)
+
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	fmt.Print(resp)
+	defer resp.Body.Close()
 }
 
 func init() {

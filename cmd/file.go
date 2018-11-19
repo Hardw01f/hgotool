@@ -15,8 +15,10 @@
 package cmd
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -54,31 +56,42 @@ and If has changes, Send notification to User`,
 				os.Exit(1)
 			}
 			fmt.Printf("Name : %s    Size : %s    Mod : %s\n", Name, Size, Permission)
+
 		} else if args[1] == "monitor" {
 			Filename := args[2]
-			_, CurrentSize, CurrentPermission, err := GetFileDetail(Filename)
+			CurrentName, CurrentSize, CurrentPermission, err := GetFileDetail(Filename)
 			if err != nil {
 				fmt.Println(err)
+				fmt.Printf("%s is not exist", CurrentName)
 				os.Exit(1)
 			}
 			CurrentSizeInt, _ := strconv.Atoi(CurrentSize)
 			CurrentPermissionInt, _ := strconv.Atoi(CurrentPermission)
 
 			for {
-				_, Size, Permission, err := GetFileDetail(Filename)
+				Name, Size, Permission, err := GetFileDetail(Filename)
 				if err != nil {
-					fmt.Println("Changing File Name or Deleteing File !!")
+					fmt.Printf("[Alert] : Changing %s Name or Deleteing File !!", Name)
+					Alert := fmt.Sprintf("[Alert] : Changing    %s     Name or Deleteing File !!", Name)
+					SendForFile(Alert)
 					os.Exit(1)
 				}
+
 				SizeInt, _ := strconv.Atoi(Size)
 				PermissionInt, _ := strconv.Atoi(Permission)
 
 				if CurrentSizeInt != SizeInt {
 					fmt.Println("Changing File Size")
+					Alert := fmt.Sprintf("[Alert] : Changing   %s   File Size,  %s --> %s", Name, CurrentSize, Size)
+					SendForFile(Alert)
 					os.Exit(1)
+
 				} else if CurrentPermissionInt != PermissionInt {
 					fmt.Println("Changing File Permission")
+					Alert := fmt.Sprintf("[Alert] : Changing   %s   File Permission,  Mode %s --> Mode %s", Name, CurrentPermission, Permission)
+					SendForFile(Alert)
 					os.Exit(1)
+
 				} else {
 					time.Sleep(1 * time.Second)
 				}
@@ -111,7 +124,7 @@ func GetFileDetail(Filename string) (string, string, string, error) {
 	if err != nil {
 		//fmt.Println(" [Error] : target file not exist")
 		Funcerr := fmt.Errorf("[Error] : %s", "target file not exist")
-		return "", "", "", Funcerr
+		return Filename, "", "", Funcerr
 	}
 	ResStr := fmt.Sprintf("%+v", Res)
 	//fmt.Println(ResStr)
@@ -126,4 +139,37 @@ func GetFileDetail(Filename string) (string, string, string, error) {
 	TrimPermission := strings.Split(SplitedRes[2], ":")
 	Permission := TrimPermission[1]
 	return Name, Size, Permission, nil
+}
+
+func SendForFile(Text string) {
+	channel := "alert"
+
+	Hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Cannot get OS Hostname")
+		os.Exit(1)
+	}
+
+	jsonStr := `{"channel":"` + channel + `","username":"` + Hostname + `","text":"` + Text + `"}`
+
+	req, err := http.NewRequest(
+		"POST",
+		"https://hooks.slack.com/services/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",
+		bytes.NewBuffer([]byte(jsonStr)),
+	)
+
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	fmt.Print(resp)
+	defer resp.Body.Close()
 }

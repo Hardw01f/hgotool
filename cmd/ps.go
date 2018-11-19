@@ -15,8 +15,10 @@
 package cmd
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -72,6 +74,7 @@ MONITOR whether current running process was killed If had killed , Send notifica
 				//str := fmt.Sprintf("%T", process.Pid)
 				//fmt.Println(str)
 			}
+
 		} else if args[1] == "search" {
 			pid, _ := strconv.Atoi(args[2])
 			targetprocess, err := ps.FindProcess(pid)
@@ -80,12 +83,18 @@ MONITOR whether current running process was killed If had killed , Send notifica
 			}
 
 			if targetprocess != nil {
-				fmt.Printf("%v", targetprocess)
+				process := fmt.Sprintf("%v", targetprocess)
+				SplitProcess := strings.Split(process, "{")
+				Splitedprocess := strings.Split(SplitProcess[1], "}")
+				res := strings.Split(Splitedprocess[0], " ")[2]
+				fmt.Printf("%s", res)
 			} else {
 				fmt.Println("the process is not exist")
 			}
+
 		} else if args[1] == "monitor" {
 			pid, _ := strconv.Atoi(args[2])
+			var ProcessName string
 			for {
 				MonitorTarget, err := ps.FindProcess(pid)
 				if err != nil {
@@ -94,10 +103,16 @@ MONITOR whether current running process was killed If had killed , Send notifica
 
 				if MonitorTarget != nil {
 					time.Sleep(5 * time.Second)
+					process := fmt.Sprintf("%v", MonitorTarget)
+					SplitProcess := strings.Split(process, "{")
+					Splitedprocess := strings.Split(SplitProcess[1], "}")
+					Splited := strings.Split(Splitedprocess[0], " ")
+					ProcessName = Splited[2]
+
 				} else if MonitorTarget == nil {
-					for i := 0; i < 2; i++ {
-						fmt.Println("Send")
-					}
+					fmt.Printf("%s Process was killed ", ProcessName)
+					Alert := fmt.Sprintf("[Alert] : %s   Process was killed", ProcessName)
+					SendForPs(Alert)
 					os.Exit(1)
 				} else {
 					fmt.Println("error")
@@ -107,6 +122,39 @@ MONITOR whether current running process was killed If had killed , Send notifica
 		}
 
 	},
+}
+
+func SendForPs(Text string) {
+
+	Hostname, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Cannot get OS hostname")
+	}
+
+	channel := "alert"
+
+	jsonStr := `{"channel":"` + channel + `","username":"` + Hostname + `","text":"` + Text + `"}`
+
+	req, err := http.NewRequest(
+		"POST",
+		"https://hooks.slack.com/services/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",
+		bytes.NewBuffer([]byte(jsonStr)),
+	)
+
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Print(err)
+	}
+
+	fmt.Print(resp)
+	defer resp.Body.Close()
 }
 
 func init() {
